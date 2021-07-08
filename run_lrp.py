@@ -308,16 +308,15 @@ def plot_pos_neg_text(top_words_pos_10, top_words_neg_10):
 
 if __name__ == '__main__':
     
-    data_path = "/content/drive/MyDrive/pixnet/dataset/clean-seg-slogan-4000.json"
-    embedding_path = "/content/drive/MyDrive/pixnet/doc2vec.bin"
-    pos_neg_flag = "positive"
-    
     parser = argparse.ArgumentParser(description='Run CNN LRP.')    
-    parser.add_argument('--data_path', help='path of original data')
-    parser.add_argument('--embedding_path', help='path of word embedding, only supportive of doc2vec currenlty')
-    parser.add_argument('--pos_neg_flag', help="print out whether positive or negative result")
+    parser.add_argument('--data_path', nargs='+', help='path of original data')
+    parser.add_argument('--embedding_path', nargs='+', help='path of word embedding, only supportive of doc2vec currenlty')
+    parser.add_argument('--pos_neg_flag', default='positive', help="print out whether positive or negative result")
     args = parser.parse_args()
     
+    data_path = args.data_path
+    embedding_path = args.embedding_path
+    pos_neg_flag = args.pos_neg_flag
     MAX_SEQ_LENGTH = 300
     EMBEDDING_DIM = 300
     LABEL_MAPPING = {"業配":1, "Unknown":0}
