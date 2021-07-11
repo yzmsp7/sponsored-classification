@@ -1,7 +1,9 @@
-# sponsored-classification
+# Sponsored Classification
 
 ## LRP Visualization
 
+run program
+
 ```
-python3 run_lrp.py --data_path --embedding_path
+python run_lrp.py --data_path data.json --embedding_path w2v.bin
 ```

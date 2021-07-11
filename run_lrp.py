@@ -9,7 +9,7 @@ import time
 import string
 import json
 import random
-import argparser
+import argparse
 
 import keras
 import keras.backend
@@ -27,6 +27,7 @@ from gensim.models.doc2vec import Doc2Vec
 
 import matplotlib.pyplot as plt
 from matplotlib import cm, transforms
+from matplotlib.font_manager import FontProperties
 
 import innvestigate
 import innvestigate.applications
@@ -34,6 +35,9 @@ import innvestigate.applications.mnist
 import innvestigate.utils as iutils
 import innvestigate.utils.visualizations as ivis
 from innvestigate.utils.tests.networks import base as network_base
+
+plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei'] 
+plt.rcParams['axes.unicode_minus'] = False
 
 def text_pipeline(x):
     # remove embedding ad script
@@ -292,7 +296,7 @@ def plot_pos_neg_text(top_words_pos_10, top_words_neg_10):
     ax1.barh(range(len(top_words_neg_10)), [w[1] for w in top_words_neg_10], align='center')
     ax1.set_title('Negative contribution', fontsize=18)
     plt.sca(ax1)
-    plt.yticks(range(len(top_words_neg_10)), [w[0] for w in top_words_neg_10], fontproperties=myfont, fontsize=16)
+    plt.yticks(range(len(top_words_neg_10)), [w[0] for w in top_words_neg_10], fontsize=16)
     ax1.yaxis.tick_right()
     plt.gca().invert_yaxis()
     plt.gca().invert_xaxis()
@@ -301,7 +305,7 @@ def plot_pos_neg_text(top_words_pos_10, top_words_neg_10):
     ax2.barh(range(len(top_words_pos_10)), [w[1] for w in top_words_pos_10], align='center', color='red')
     ax2.set_title('Positive contribution', fontsize=18)
     plt.sca(ax2)
-    plt.yticks(range(len(top_words_pos_10)), [w[0] for w in top_words_pos_10], fontproperties=myfont, fontsize=16)
+    plt.yticks(range(len(top_words_pos_10)), [w[0] for w in top_words_pos_10], fontsize=16)
     plt.gca().invert_yaxis()
     plt.show()
     
@@ -309,11 +313,11 @@ def plot_pos_neg_text(top_words_pos_10, top_words_neg_10):
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Run CNN LRP.')    
-    parser.add_argument('--data_path', nargs='+', help='path of original data')
-    parser.add_argument('--embedding_path', nargs='+', help='path of word embedding, only supportive of doc2vec currenlty')
+    parser.add_argument('--data_path', type=str, help='path of original data')
+    parser.add_argument('--embedding_path', type=str, help='path of word embedding, only supportive of doc2vec currenlty')
     parser.add_argument('--pos_neg_flag', default='positive', help="print out whether positive or negative result")
     args = parser.parse_args()
-    
+
     data_path = args.data_path
     embedding_path = args.embedding_path
     pos_neg_flag = args.pos_neg_flag
