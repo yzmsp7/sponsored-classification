@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <!--<link rel="stylesheet" href="/static/css/argon.css?v=1.2.0" type="text/css">-->
+    <script src="https://cdn.plot.ly/plotly-2.2.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.5.0/d3.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/holtzy/D3-graph-gallery@master/LIB/d3.layout.cloud.js"></script>
+    <title>LRP Visualization</title>
+  </head>
+  <body>
+		<nav class="navbar navbar-horizontal navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">CDNA</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbar-default" aria-controls="navbar-default" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+    </nav>
+    <div class="container">
+      <h1 class="mt-4">業配文偵測與視覺化</h1>
+      <form method="post">
+        <div class="form-group">
+          <label for="inputContent">請輸入文章...</label>
+            <textarea class="form-control" id="inputContent" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+
+        <button type="submit" class="btn btn-primary">Submit</button>
+      </form>
+      <div class="row mb-4 mt-4">
+        <div class="col-xl-3 col-md-6">
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title">預測結果</h5>
+              <p id="result" class="card-text"></p>
+            </div>
+          </div>
+        </div>
+        <div class="col-xl-3">
+          <div class="progress-wrapper">
+            <div class="progress-info">
+              <div class="h6 mb-4">業配文預測分數</div>
+              <div id="prob_score_text" class="small font-weight-bold text-dark"></div>
+            </div>
+            <div class="progress mb-0">
+              <div id="prob_score" class="progress-bar bg-danger" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xl col-md-6">
+          <div class="card mb-4">
+            <div class="card-body">
+              <h5 class="card-title">字與預測結果相關性</h5>
+              <img id="result_img"></img>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-xl-6 col-md-6">
+          <div class="card mb-6">
+            <div class="card-body">
+              <h5 class="card-title">正相關文字雲</h5>
+              <div id="word_cloud"><svg><g></svg></g></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-xl-6 col-md-6">
+          <div class="card mb-6">
+            <div class="card-body">
+              <h5 class="card-title">權重改變字的大小</h5>
+              <div id="text_vis"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div> 
+    <script>
+      $("button").click(function(e) {
+        e.preventDefault();
+        var value = $("#inputContent").val();
+        var image = new Image();
+        $.ajax({
+          type: "POST",
+          url: "lrp_plot",
+          data: JSON.stringify({"text":value}),
+          contentType: "application/json; charset=utf-8",
+          dataType: "json",
+          success: function (data) {
+            //$("#result").html('<img src="/static/img/lrp_plot.png" alt="LRP PLOT"/>'); 
+            //image.src = "data:image/png;base64,"+data['img']
+            
+            if (data['y_hat'] == 1) {
+              $("#result").html('<span class="">業配文</span>');
+            }
+            else {
+              $("#result").html("非業配文");
+            }
+
+            if (data['y_hat'] == 1) {
+              var prob_score = Math.round(data['y_prob']*100);
+            }
+            else {
+              var prob_score = Math.round((1-data['y_prob'])*100);
+            }
+
+            $("#result_img").attr('src',"data:image/png;base64,"+ data["img"]);
+            //alert(JSON.stringify(data));
+            // prediction progress bar
+            //alert(prob_score);
+            $("#prob_score").attr('aria-valuenow', prob_score);
+            $("#prob_score_text").html("<span>"+prob_score+"%</span>");
+            $("#prob_score").css("width", prob_score + "%");
+            // word cloud
+            var margin = {top: 10, right: 10, bottom: 10, left: 10};
+            var width = 450 - margin.left - margin.right;
+            var height = 450 - margin.top - margin.bottom;
+            //var svg = d3.select("#word_cloud").select("svg")
+            //      .attr("width", width + margin.left + margin.right)
+            //      .attr("height", height + margin.top + margin.bottom)
+            //      .select("g")
+            //      .attr("transform","translate(" + margin.left + "," + margin.top + ")");
+            var word_cloud_data = data['words']
+              .map(function(d) {
+                return { text: d.text, size: Number(d.size) *20+10};});
+
+            var layout = d3.layout.cloud().size([width, height])
+              .words(word_cloud_data)
+              .padding(5)
+              .rotate(function() {return ~~(Math.random()*2)*90;})
+              .fontSize(function(d){return d.size;})
+              .on("end", draw);
+            layout.start()
+            
+            function draw(words) {
+              //svg
+              d3.select("#word_cloud")
+                .select("svg")
+                .attr("width", width+margin.left + margin.right)
+                .attr("height", width+margin.top + margin.bottom)
+                .select("g")
+                .attr("transform", "translate(" + layout.size()[0] / 2 + "," + layout.size()[1] / 2 + ")")
+                .selectAll("text")
+                .data(words)
+                .enter().append("text")
+                .style("font-size", function(d) { return d.size; })
+                .style("fill", "#dc143c")
+                .attr("text-anchor", "middle")
+                .style("font-family", "Impact")
+                .attr("transform", function(d) {
+                    return "translate(" + [d.x, d.y] + ")";//rotate(" + d.rotate + ")";
+                })
+                .text(function(d) { return d.text; });
+              }
+            
+            layout.start()
+            
+            let text_vis = d3.select("#text_vis")
+              .selectAll("span")
+              .data(data['words'])
+              .enter()
+              .append("span")
+              .style("color", function(d){
+                if (d.size >= 0.5) {
+                  return "red";
+                }
+              })
+              .style("font-size", function(d){return d.size*30+"px";})
+              .text(function(d) { 
+                return d.text + " "; 
+              });
+          }// end of ajax
+          
+        });
+      });
+
+    // List of words
+
+    </script>
+     <script src="static/js/wordcloud.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.5.0/d3.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!--<script src="{{ url_for('static', filename='js/app.js') }}"></script>-->
+  </body>
+</html> 

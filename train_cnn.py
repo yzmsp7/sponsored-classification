@@ -24,20 +24,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
 
 from gensim.models.doc2vec import Doc2Vec
-
-import matplotlib.pyplot as plt
-from matplotlib import cm, transforms
-from matplotlib.font_manager import FontProperties
-
 import innvestigate
 import innvestigate.applications
-import innvestigate.applications.mnist
 import innvestigate.utils as iutils
-import innvestigate.utils.visualizations as ivis
 from innvestigate.utils.tests.networks import base as network_base
 
-plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei'] 
-plt.rcParams['axes.unicode_minus'] = False
 
 def text_pipeline(x):
     # remove embedding ad script
@@ -172,155 +163,15 @@ def train_model(model,  batch_size=128, epochs=20):
     print('Test accuracy:', score[1])
     
 
-def plot_confusion_matrix(cm, target_names, title='Confusion matrix', cmap=plt.cm.Blues):
-    plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    plt.title(title)
-    plt.colorbar()
-    tick_marks = np.arange(len(target_names))
-    plt.xticks(tick_marks, target_names, rotation=45)
-    plt.yticks(tick_marks, target_names)
-    plt.tight_layout()
-
-    width, height = cm.shape
-
-    for x in range(width):
-        for y in range(height):
-            plt.annotate(str(cm[x][y]), xy=(y, x), 
-                        horizontalalignment='center',
-                        verticalalignment='center')
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label') 
-    plt.show()
-
-def plot_text_heatmap(words, scores, title="", width=10, height=0.2, verbose=0, max_word_per_line=20):
-    """
-    This is a utility method visualizing the relevance scores of each word to the network's prediction. 
-    one might skip understanding the function, and see its output first.
-    """
-    fig = plt.figure(figsize=(width, height))
-    
-    ax = plt.gca()
-
-    ax.set_title(title, loc='left')
-    tokens = words
-    if verbose > 0:
-        print('len words : %d | len scores : %d' % (len(words), len(scores)))
-
-    cmap = plt.cm.ScalarMappable(cmap=cm.bwr)
-    cmap.set_clim(0, 1)
-    
-    canvas = ax.figure.canvas
-    t = ax.transData
-
-    # normalize scores to the followings:
-    # - negative scores in [0, 0.5]
-    # - positive scores in (0.5, 1]
-    normalized_scores = 0.5 * scores / np.max(np.abs(scores)) + 0.5
-    
-    if verbose > 1:
-        print('Raw score')
-        print(scores)
-        print('Normalized score')
-        print(normalized_scores)
-
-    # make sure the heatmap doesn't overlap with the title
-    loc_y = -0.2
-
-    for i, token in enumerate(tokens):
-        *rgb, _ = cmap.to_rgba(normalized_scores[i], bytes=True)
-        color = '#%02x%02x%02x' % tuple(rgb)
-        
-        text = ax.text(0.0, loc_y, token,
-                       bbox={
-                           'facecolor': color,
-                           'pad': 5.0,
-                           'linewidth': 1,
-                           'boxstyle': 'round,pad=0.5'
-                       }, transform=t, fontproperties=myfont)
-
-        text.draw(canvas.get_renderer())
-        ex = text.get_window_extent()
-        
-        # create a new line if the line exceeds the length
-        if (i+1) % max_word_per_line == 0:
-            loc_y = loc_y -  2.5
-            t = ax.transData
-        else:
-            t = transforms.offset_copy(text._transform, x=ex.width+15, units='dots')
-
-    if verbose == 0:
-        ax.axis('off')
-        
-def top_words_in_lrp(test, decoder, k):
-    top_words_pos = {}
-    top_words_neg = {}
-    
-    for i, idx in enumerate(test):
-
-        words = [decoder[t] for t in list(DATASETS['testing']['encoded_reviews'][idx])]
-
-        # print('Review(id=%d): %s' % (idx, ' '.join(words)))
-        y_true = DATASETS['testing']['y'][idx]
-        y_pred = test_sample_preds[i]
-
-        # print("Pred class : %s %s" %
-        #       (LABEL_IDX_TO_NAME[y_pred], '✓' if y_pred == y_true else '✗ (%s)' % LABEL_IDX_TO_NAME[y_true])
-        #      )
-
-        for j in list(analysis[i, 2].reshape(-1).argsort()[-10:][::-1]):
-            try:
-                top_words_pos[words[j]] = top_words_pos.get(words[j], 0) + 1
-            except:
-                # print("cannot find word index", j)
-                pass
-
-        for j in list(analysis[i, 2].reshape(-1).argsort()[:10][::-1]):
-            try:
-                top_words_neg[words[j]] = top_words_neg.get(words[j], 0) + 1
-            except:
-                # print("cannot find word index", j)
-                pass
-        # for j, method in enumerate(methods):
-        #     plot_text_heatmap(words, analysis[i, j].reshape(-1), title='Method: %s' % method, verbose=0)
-        #     plt.show()
-
-    top_words_pos_k = sorted(top_words_pos.items(), key=lambda x: x[1], reverse=True)[:k]
-    top_words_neg_k = sorted(top_words_neg.items(), key=lambda x: x[1], reverse=True)[:k]
-    
-    return top_words_pos_k, top_words_neg_k
-
-def plot_pos_neg_text(top_words_pos_10, top_words_neg_10):
-    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12,6))
-    fig.subplots_adjust(wspace=0.8)
-
-    ax1.barh(range(len(top_words_neg_10)), [w[1] for w in top_words_neg_10], align='center')
-    ax1.set_title('Negative contribution', fontsize=18)
-    plt.sca(ax1)
-    plt.yticks(range(len(top_words_neg_10)), [w[0] for w in top_words_neg_10], fontsize=16)
-    ax1.yaxis.tick_right()
-    plt.gca().invert_yaxis()
-    plt.gca().invert_xaxis()
-
-
-    ax2.barh(range(len(top_words_pos_10)), [w[1] for w in top_words_pos_10], align='center', color='red')
-    ax2.set_title('Positive contribution', fontsize=18)
-    plt.sca(ax2)
-    plt.yticks(range(len(top_words_pos_10)), [w[0] for w in top_words_pos_10], fontsize=16)
-    plt.gca().invert_yaxis()
-    plt.show()
-    
-
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Run CNN LRP.')    
     parser.add_argument('--data_path', type=str, help='path of original data')
     parser.add_argument('--embedding_path', type=str, help='path of word embedding, only supportive of doc2vec currenlty')
-    parser.add_argument('--pos_neg_flag', default='positive', help="print out whether positive or negative result")
     args = parser.parse_args()
 
     data_path = args.data_path
     embedding_path = args.embedding_path
-    pos_neg_flag = args.pos_neg_flag
     MAX_SEQ_LENGTH = 300
     EMBEDDING_DIM = 300
     LABEL_MAPPING = {"業配":1, "Unknown":0}
@@ -360,12 +211,15 @@ if __name__ == '__main__':
     print('We have {} reviews in the training set, and {} reviews in the testing set'.format
           (len(DATASETS['training']['x4d']), len(DATASETS['testing']['x4d'])))
 
+    #np.save(DATASETS['training']['x4d'],)
     net = build_network((None, 1, MAX_SEQ_LENGTH, EMBEDDING_DIM), NUM_CLASSES)
     model_without_softmax, model_with_softmax = Model(inputs=net['in'], outputs=net['out']), Model(inputs=net['in'], outputs=net['sm_out'])
 
     train_model(model_with_softmax, batch_size=128, epochs=10)
     model_without_softmax.set_weights(model_with_softmax.get_weights())
 
+    model_without_softmax.save("models/cnn_wo_softmax.h5")
+    model_with_softmax.save("models/cnn_with_softmax.h5")
     # Specify methods that you would like to use to explain the model. 
     # Please refer to iNNvestigate's documents for available methods.
     methods = ['gradient', 'lrp.z', 'lrp.alpha_2_beta_1', 'pattern.attribution']
@@ -377,6 +231,8 @@ if __name__ == '__main__':
         analyzer = innvestigate.create_analyzer(method, model_without_softmax, **kws)
         analyzer.fit(DATASETS['training']['x4d'], batch_size=256, verbose=1)
         analyzers.append(analyzer)
+        #if method == "lrp.alpha_2_beta_1":
+            #a_state = analyzer.save_npz("lrp_alpha_2")
 
     test_all_preds = [None] * len(test_idx)
     for i in range(len(test_idx)):
@@ -408,10 +264,7 @@ if __name__ == '__main__':
         1: 'Sponsorship'
     }
 
-    if pos_neg_flag == "positive":
-        test = tp + fp
-    else:
-        test = tn + fn
+    test = tp + fp
 
     test_sample_preds = [None]*len(test)
     analysis = np.zeros([len(test), len(analyzers), 1, MAX_SEQ_LENGTH])
@@ -437,5 +290,3 @@ if __name__ == '__main__':
         t_elapsed = time.time() - t_start
         # print('Review %d (%.4fs)'% (ridx, t_elapsed))
 
-    top_words_pos_20, top_words_neg_20 = top_words_in_lrp(test, decoder, 20)
-    plot_pos_neg_text(top_words_pos_20, top_words_neg_20)
